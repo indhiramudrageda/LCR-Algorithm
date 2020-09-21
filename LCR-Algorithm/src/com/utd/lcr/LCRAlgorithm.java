@@ -3,12 +3,12 @@ package com.utd.lcr;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
-import java.net.InetAddress;
 
 public class LCRAlgorithm {
 	private int numberOfProcesses;
 	private int[] IDs;
 	private Node[] processes;
+	private SharedMemory sharedMemory;
 	private static final String CONFIG_FILE = "input.dat";
 	
 	public LCRAlgorithm(int numberOfProcesses, int[] IDs) {
@@ -17,9 +17,9 @@ public class LCRAlgorithm {
 		this.processes = new Node[numberOfProcesses];
 		
 		//Spawn n threads passing its ID, location in ring and shared memory object.
-		SharedMemory memory = new SharedMemory(numberOfProcesses);
+		setSharedMemory(new SharedMemory(numberOfProcesses));
 		for(int i=0;i<numberOfProcesses;i++) {
-			Node node = new Node(IDs[i], i, memory);
+			Node node = new Node(IDs[i], i, getSharedMemory());
 			processes[i] = node;
 			node.start();
 		}
@@ -30,7 +30,7 @@ public class LCRAlgorithm {
 		int runningProcesses = getNumberOfProcesses();
 		int round = 0;
 		
-		// Intiating LCR algorithm at all processes
+		// Initiating LCR algorithm at all processes
 		for(int i=0;i<getNumberOfProcesses();i++) {
 			Node node = getProcesses()[i];
 			node.initiateLeaderElection();
@@ -42,6 +42,7 @@ public class LCRAlgorithm {
 			
 			//2. Start the next round.
 			round++;
+			getSharedMemory().copyToPrevQueues();
 			for(int i=0;i<getNumberOfProcesses();i++) {
 				Node node = getProcesses()[i];
 				if(!node.isInterrupted()) {
@@ -62,6 +63,7 @@ public class LCRAlgorithm {
 			for(int i=0;i<getNumberOfProcesses();i++) {
 				Node node = getProcesses()[i];
 				if(!node.isInterrupted()) {
+					// Round is said to be completed if round value of the process is set to the next round number it is to execute.
 					if(node.getRound() == round+1)
 						completedProcesses++;
 				}
@@ -93,6 +95,14 @@ public class LCRAlgorithm {
 
 	public void setProcesses(Node[] processes) {
 		this.processes = processes;
+	}
+
+	public SharedMemory getSharedMemory() {
+		return sharedMemory;
+	}
+
+	public void setSharedMemory(SharedMemory sharedMemory) {
+		this.sharedMemory = sharedMemory;
 	}
 
 	public static void main(String[] args) {

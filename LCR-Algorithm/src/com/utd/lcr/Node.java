@@ -6,20 +6,20 @@ public class Node extends Thread{
 	private int leader;
 	private int round;
 	private SharedMemory memory;
-	private volatile boolean flag;
+	private volatile boolean beginNextRound;
 	
 	public Node(int ID, int loc, SharedMemory memory) {
 		this.ID = ID;
 		this.loc = loc;
 		this.leader = -1;
 		this.round = 0;
-		this.flag = false;
+		this.beginNextRound = false;
 		this.setMemory(memory);
 	}
 	
 	public void beginNextRound() {
 		// Set flag to true indicating the process can start the next round.
-		setFlag(true);
+		setBeginNextRound(true);
 	}
 	
 	public void initiateLeaderElection() {
@@ -29,17 +29,20 @@ public class Node extends Thread{
 	
 	@Override
 	public void run() {
-		System.out.println("[NODE] "+getID()+" Started executing..");
+		System.out.println("[NODE ID: "+ getID() +"] Started executing..");
+		
 		while(true) {
-			if(isFlag()) {
-				setFlag(false);
+			if(canBeginNextRound()) {
+				// Reset the beginNextRound flag to false.
+				setBeginNextRound(false);
+				
 				Message message = getMemory().accessMessage(loc);
 				if(message != null) {
 					if(message.getType().equals(Message.LEADER)) {
 						//set leader and terminate.
 						setLeader(message.getID());
 						getMemory().addMessage(loc+1, loc, new Message(message.getID(), Message.LEADER));
-						System.out.println("[NODE] "+getID()+" Leader is found to be "+getLeader()+" in round "+ getRound());
+						System.out.println("[NODE ID: "+ getID() +"] Leader is found to be "+getLeader()+" in round "+ getRound());
 					} else if(message.getType().equals(Message.LEADER_ELECTION)) {
 						if(message.getID() < getID()) {
 							// pass it to neighbor
@@ -47,7 +50,7 @@ public class Node extends Thread{
 						} else if(message.getID() == getID()) {
 							// I am the leader.
 							setLeader(getID());
-							System.out.println("[NODE] "+getID()+" Leader is found to be "+getLeader()+" in round "+ getRound());
+							System.out.println("[NODE ID: "+ getID() +"] Leader is found to be "+getLeader()+" in round "+ getRound());
 							getMemory().addMessage(loc+1, loc, new Message(message.getID(), Message.LEADER));
 						}
 					}
@@ -92,12 +95,12 @@ public class Node extends Thread{
 		this.memory = memory;
 	}
 
-	public boolean isFlag() {
-		return flag;
+	public boolean canBeginNextRound() {
+		return beginNextRound;
 	}
 
-	public void setFlag(boolean flag) {
-		this.flag = flag;
+	public void setBeginNextRound(boolean beginNextRound) {
+		this.beginNextRound = beginNextRound;
 	}
 
 }
